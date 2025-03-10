@@ -1,15 +1,12 @@
 ### Importing necessary libraries
 
-import configparser  # pip install configparser
-from telethon import TelegramClient, events  # pip install telethon
-from datetime import datetime, timedelta
-import MySQLdb  # pip install mysqlclient
-import pyodbc  # pip install pyodbc
+import configparser # pip install configparser
+from telethon import TelegramClient, events # pip install telethon
+from datetime import datetime
+import MySQLdb # pip install mysqlclient
 import time
 import threading
 import asyncio
-import csv
-
 
 ### Initializing Configuration
 print("Initializing configuration...")
@@ -17,18 +14,17 @@ config = configparser.ConfigParser()
 config.read('config.ini')
 
 # Read values for Telethon and set session name
-API_ID = config.get('default', 'api_id')
-API_HASH = config.get('default', 'api_hash')
-BOT_TOKEN = config.get('default', 'bot_token')
+API_ID = config.get('default','api_id') 
+API_HASH = config.get('default','api_hash')
+BOT_TOKEN = config.get('default','bot_token')
 session_name = "sessions/Bot"
 
 # Read values for MySQLdb
-hostname = config.get('default', 'hostname')
-port = config.get('default', 'port')
-username = config.get('default', 'username')
-password = config.get('default', 'password')
-database = config.get('default', 'database')
-
+HOSTNAME = config.get('default','hostname')
+USERNAME = config.get('default','username')
+PASSWORD = config.get('default','password')
+DATABASE = config.get('default','database')
+ 
 # Start the Client (telethon)
 client = TelegramClient(session_name, API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
@@ -103,17 +99,27 @@ async def insert(event):
 
 
 
-# Function that creates a message containing a list of all the items
+# Function that creates a message containing a list of all the customers
 def create_message_select_query(ans):
     text = ""
     for i in ans:
-        item_code = i[0]
-        section_code = i[1]
-        sending_time = i[2]
+        customer_id = i[0]
+        full_name = i[1]
+        email = i[2]
+        phone = i[3]
+        address = i[4]
+        city = i[5]
+        postal_code = i[6]
+        country = i[7]
+        date_of_birth = i[8]
+        gender = i[9]
+        join_date = i[10]
         text += (
-            f"ItemCode: {item_code}\nSectionCode: {section_code}\nSendingTime: {sending_time}\n\n"
+            f"CustomerID: {customer_id}\nFullName: {full_name}\nEmail: {email}\nPhone: {phone}\n"
+            f"Address: {address}\nCity: {city}\nPostalCode: {postal_code}\nCountry: {country}\n"
+            f"DateOfBirth: {date_of_birth}\nGender: {gender}\nJoinDate: {join_date}\n\n"
         )
-    message = f"<b>Received 📖 </b> Information about items:\n\n<b>{text}</b>"
+    message = f"<b>Received 📖 </b> Information about customers:\n\n<b>{text}</b>"
     return message
 
 ### SELECT COMMAND
@@ -123,24 +129,22 @@ async def select(event):
         # Get the sender of the message
         sender = await event.get_sender()
         SENDER = sender.id
-        # Execute the query and get all (*) the items
-        conn = pyodbc.connect(f'DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={hostname};DATABASE={database};UID={username};PWD={password}')
-        crsr = conn.cursor()
-        crsr.execute("SELECT * FROM item")
-        res = crsr.fetchall()  # fetch all the results
-        # If there is at least 1 row selected, print a message with the list of all the items
+        # Execute the query and get all (*) the customers
+        crsr.execute("SELECT * FROM customer")
+        res = crsr.fetchall() # fetch all the results
+        # If there is at least 1 row selected, print a message with the list of all the customers
         # The message is created using the function defined above
         if res:
-            text = create_message_select_query(res)
+            text = create_message_select_query(res) 
             await client.send_message(SENDER, text, parse_mode='html')
         # Otherwise, print a default text
         else:
-            text = "No items found inside the database."
+            text = "No customers found inside the database."
             await client.send_message(SENDER, text, parse_mode='html')
-        conn.close()
-    except Exception as e:
+
+    except Exception as e: 
         print(e)
-        await client.send_message(SENDER, "Something wrong happened... Check your code!", parse_mode='html')
+        await client.send_message(SENDER, "Something Wrong happened... Check your code!", parse_mode='html')
         return
 
 
@@ -249,65 +253,80 @@ def create_database(query):
     except Exception as e:
         print(f"WARNING: '{e}'")
 
-### MAIN
+##### MAIN
+import threading
+import asyncio
+import MySQLdb
+from datetime import datetime
+import csv
+
 async def monitor_database():
-    previous_data = None  # Để lần đầu không gửi thông báo
+    previous_data = None
 
     while True:
-        try:
-            print("Checking database for changes...")
-            conn = pyodbc.connect(
-                f'DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={hostname};DATABASE={database};UID={username};PWD={password}'
-            )
-            cursor = conn.cursor()
+        print("Checking database for changes...")
+        conn = MySQLdb.connect(host=HOSTNAME, user=USERNAME, passwd=PASSWORD, db=DATABASE, charset='utf8mb4')
+        crsr = conn.cursor()
+        crsr.execute("SELECT * FROM customer")  # Chỉ giám sát bảng customer
+        current_data = crsr.fetchall()
 
-            # Thực hiện truy vấn
-            query1 = f"SELECT * FROM item WITH (NOLOCK) WHERE SectionCode='CAS'"
-            cursor.execute(query1)
-            current_data = cursor.fetchall()
+        if previous_data is None:
+            previous_data = current_data
 
-            if previous_data is None:
-                # Gán giá trị ban đầu cho `previous_data` nhưng không gửi thông báo
-                previous_data = current_data
-            elif sorted(current_data) != sorted(previous_data):
-                # Chỉ gửi thông báo nếu có sự thay đổi
-                changes_message = "Detected changes:\n"
+        changes_detected = False
+        changes_message = ""
+
+        if current_data != previous_data:
+            for new_row in current_data:
+                if new_row not in previous_data:
+                    changes_detected = True
+                    changes_message += f"Dữ liệu mới được cập nhật0: {new_row}\n"
+
+            for old_row in previous_data:
+                if old_row not in current_data:
+                    changes_detected = True
+                    changes_message += f"Dữ liệu cũ: {old_row}\n"
+
+        if changes_detected:
+            # Gửi tin nhắn báo cáo giám sát
+            try:
+                await client.send_message(6507260169, changes_message)  # Thay thế bằng chat ID thực tế
+                print("Message sent successfully.")
+            except Exception as e:
+                print(f"Error sending message: {e}")
+
+            # Tạo file báo cáo giám sát dưới dạng CSV
+            report_filename = f"monitor_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            with open(report_filename, mode='w', newline='', encoding='utf-8-sig') as file:
+                writer = csv.writer(file)
+
+                # Ghi tiêu đề
+                writer.writerow(["CustomerID", "FullName", "Email", "Phone", "Address", "City", "PostalCode", "Country", "DateOfBirth", "Gender", "JoinDate"])
+
+                # Ghi dữ liệu
                 for row in current_data:
-                    if row not in previous_data:
-                        changes_message += f"New row: {row}\n"
-                for row in previous_data:
-                    if row not in current_data:
-                        changes_message += f"Removed row: {row}\n"
+                    row = list(row)
 
-                # Tạo file CSV
-                report_filename = f"item_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-                with open(report_filename, mode='w', newline='', encoding='utf-8-sig') as file:
-                    writer = csv.writer(file)
-                    # Ghi tiêu đề
-                    writer.writerow(["ItemCode", "ItemName", "Description", "Price", "SendingTime", "SectionCode"])
-                    # Ghi dữ liệu
-                    writer.writerows(current_data)
+                    for i in [8, 10]:  
+                        if isinstance(row[i], str) and "/" in row[i]:
+                            try:
+                                row[i] = datetime.strptime(row[i], "%m/%d/%Y").strftime("%Y-%m-%d")
+                            except ValueError:
+                                pass  
 
-                # Gửi tin nhắn và file báo cáo CSV
-                print(changes_message)
-                try:
-                    await client.send_message(6507260169, changes_message)
-                    await client.send_file(6507260169, report_filename, caption="Here is the updated CSV report.")
-                    print("Message and report sent successfully.")
-                except Exception as e:
-                    print(f"Error sending message or file: {e}")
+                    writer.writerow(row)
 
-                # Cập nhật `previous_data` sau khi đã gửi thông báo
-                previous_data = current_data
+            try:
+                await client.send_file(6507260169, report_filename, caption="Báo cáo giám sát mới")
+                print("Report sent successfully.")
+            except Exception as e:
+                print(f"Error sending report: {e}")
 
-            cursor.close()
-            conn.close()
-            await asyncio.sleep(5)
+        previous_data = current_data
+        crsr.close()
+        conn.close()
 
-        except Exception as e:
-            print(f"Error in monitoring: {e}")
-
-
+        await asyncio.sleep(5)
 
 
 async def main():
@@ -317,12 +336,38 @@ async def main():
 
 if __name__ == '__main__':
     try:
+        print("Initializing Database...")
+        conn_mysql = MySQLdb.connect(host=HOSTNAME, user=USERNAME, passwd=PASSWORD)
+        crsr_mysql = conn_mysql.cursor()
+
+        query = "CREATE DATABASE " + str(DATABASE)
+        create_database(query)
+        conn = MySQLdb.connect(host=HOSTNAME, user=USERNAME, passwd=PASSWORD, db=DATABASE)
+        crsr = conn.cursor()
+
+        sql_command = """CREATE TABLE IF NOT EXISTS customer ( 
+            CustomerID INTEGER PRIMARY KEY AUTO_INCREMENT, 
+            FullName VARCHAR(255) NOT NULL,
+            Email VARCHAR(255) NOT NULL,
+            Phone VARCHAR(20),
+            Address TEXT,
+            City VARCHAR(100),
+            PostalCode VARCHAR(20),
+            Country VARCHAR(100),
+            DateOfBirth DATE,
+            Gender ENUM('Male', 'Female', 'Other'),
+            JoinDate DATE NOT NULL);"""
+
+        crsr.execute(sql_command)
+        print("All tables are ready")
+
+        print("Bot Started...")
+        
         # Chạy hàm main trong event loop của Telethon client
         client.loop.run_until_complete(main())
 
     except Exception as error:
         print('Cause: {}'.format(error))
-
 
 
 
