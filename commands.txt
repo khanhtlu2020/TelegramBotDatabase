@@ -1,0 +1,5 @@
+/insert "Pham Cong Khanh" "phamcongkhanh@gmail.com" "0984315684" "234 Đường Cau Giay" "Ha Noi" "100000" "Vietnam" "2002-11-30" "Male" "2024-08-25"
+
+/update "1" "Nguyen Van B" "nguyenvanb@example.com" "0912345678" "456 Đường ABC" "Hanoi" "100000" "Vietnam" "1980-02-20" "Male" "2023-03-10"
+
+/delete 6
