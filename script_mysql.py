@@ -271,13 +271,13 @@ async def monitor_database():
                 previous_data = current_data
             elif sorted(current_data) != sorted(previous_data):
                 # Chỉ gửi thông báo nếu có sự thay đổi
-                changes_message = "Detected changes:\n"
+                changes_message = "Báo cáo giám sát mới:\n"
                 for row in current_data:
                     if row not in previous_data:
-                        changes_message += f"New row: {row}\n"
+                        changes_message += f"Dữ liệu mới được cập nhật: {row}\n"
                 for row in previous_data:
                     if row not in current_data:
-                        changes_message += f"Removed row: {row}\n"
+                        changes_message += f"Dữ liệu cũ: {row}\n"
 
                 # Tạo file CSV
                 report_filename = f"item_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
@@ -292,7 +292,7 @@ async def monitor_database():
                 print(changes_message)
                 try:
                     await client.send_message(6507260169, changes_message)
-                    await client.send_file(6507260169, report_filename, caption="Here is the updated CSV report.")
+                    await client.send_file(6507260169, report_filename, caption="Báo cáo giám sát đính kèm.")
                     print("Message and report sent successfully.")
                 except Exception as e:
                     print(f"Error sending message or file: {e}")
@@ -302,11 +302,10 @@ async def monitor_database():
 
             cursor.close()
             conn.close()
-            await asyncio.sleep(5)
+            await asyncio.sleep(120)
 
         except Exception as e:
             print(f"Error in monitoring: {e}")
-
 
 
 
