@@ -1,5 +1,3 @@
-### Importing necessary libraries
-
 import configparser  # pip install configparser
 from telethon import TelegramClient, events  # pip install telethon
 from datetime import datetime, timedelta
@@ -9,7 +7,7 @@ import time
 import threading
 import asyncio
 import csv
-
+import re
 
 ### Initializing Configuration
 print("Initializing configuration...")
@@ -41,67 +39,56 @@ async def start(event):
     SENDER = sender.id
     
     # set text and send message
-    text = "Hello i am a bot that can do CRUD operations inside a MySQL database"
+    text = "Hello i am a bot that can do CRUD operations and data report inside a SQL Server database"
     await client.send_message(SENDER, text)
-
-
-import re
-
+    
+    
+### INSERT COMMAND
 @client.on(events.NewMessage(pattern="(?i)/insert"))
 async def insert(event):
     try:
         # Get the sender of the message
         sender = await event.get_sender()
         SENDER = sender.id
-
-        # Example command: /insert "Nguyen Van A" "nguyenvana@example.com" "0912345678" "123 Đường ABC" "Hanoi" "100000" "Vietnam" "1990-01-01" "Male" "2023-02-20"
         
         # Use regular expression to extract data between quotes
         pattern = r'"([^"]+)"'
         list_of_words = re.findall(pattern, event.message.text)
         
-        if len(list_of_words) != 10:
-            text = "Please provide all required fields: FullName, Email, Phone, Address, City, PostalCode, Country, DateOfBirth, Gender, JoinDate."
+        if len(list_of_words) != 6:
+            text = "Please provide all required fields: ItemCode, ItemName, Description, Price, SendingTime, SectionCode."
             await client.send_message(SENDER, text, parse_mode='html')
             return
 
-        full_name = list_of_words[0].strip()
-        email = list_of_words[1].strip()
-        phone = list_of_words[2].strip()
-        address = list_of_words[3].strip()
-        city = list_of_words[4].strip()
-        postal_code = list_of_words[5].strip()
-        country = list_of_words[6].strip()
-        date_of_birth = list_of_words[7].strip()
-        gender = list_of_words[8].strip()
-        join_date = list_of_words[9].strip()
+        item_code = list_of_words[0].strip()
+        item_name = list_of_words[1].strip()
+        description = list_of_words[2].strip()
+        price = list_of_words[3].strip()
+        sending_time = list_of_words[4].strip()
+        section_code = list_of_words[5].strip()
 
         # Create the tuple "params" with all the parameters inserted by the user
-        params = (full_name, email, phone, address, city, postal_code, country, date_of_birth, gender, join_date)
+        params = (item_code, item_name, description, price, sending_time, section_code)
         sql_command = """
-            INSERT INTO customer (FullName, Email, Phone, Address, City, PostalCode, Country, DateOfBirth, Gender, JoinDate)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+            INSERT INTO item (ItemCode, ItemName, Description, Price, SendingTime, SectionCode)
+            VALUES (%s, %s, %s, %s, %s, %s);
         """ # Prepare the SQL command
 
         crsr.execute(sql_command, params) # Execute the query
-        conn.commit() # commit the changes
+        conn.commit() # Commit the changes
 
         # If at least 1 row is affected by the query we send specific messages
         if crsr.rowcount < 1:
             text = "Something went wrong, please try again."
             await client.send_message(SENDER, text, parse_mode='html')
         else:
-            text = "Customer record correctly inserted."
+            text = "Item record correctly inserted."
             await client.send_message(SENDER, text, parse_mode='html')
 
     except Exception as e: 
         print(e)
-        await client.send_message(SENDER, "Something Wrong happened... Check your code!", parse_mode='html')
+        await client.send_message(SENDER, "Something wrong happened... Check your code!", parse_mode='html')
         return
-
-
-
-
 
 # Function that creates a message containing a list of all the items
 def create_message_select_query(ans):
@@ -115,6 +102,7 @@ def create_message_select_query(ans):
         )
     message = f"<b>Received 📖 </b> Information about items:\n\n<b>{text}</b>"
     return message
+
 
 ### SELECT COMMAND
 @client.on(events.NewMessage(pattern="(?i)/select"))
@@ -144,10 +132,6 @@ async def select(event):
         return
 
 
-
-
-
-
 ### UPDATE COMMAND
 @client.on(events.NewMessage(pattern="(?i)/update"))
 async def update(event):
@@ -156,53 +140,47 @@ async def update(event):
         sender = await event.get_sender()
         SENDER = sender.id
 
-        # Example command: /update 1 "Nguyen Van B" "nguyenvanb@example.com" "0912345678" "456 Đường ABC" "Hanoi" "100000" "Vietnam" "1980-02-20" "Male" "2023-03-10"
-        
         # Use regular expression to extract data between quotes
         pattern = r'"([^"]+)"'
         list_of_words = re.findall(pattern, event.message.text)
         
-        if len(list_of_words) != 11:
-            text = "Please provide all required fields: ID, FullName, Email, Phone, Address, City, PostalCode, Country, DateOfBirth, Gender, JoinDate."
+        if len(list_of_words) != 6:
+            text = "Please provide all required fields: ID, ItemCode, ItemName, Description, Price, SendingTime, SectionCode."
             await client.send_message(SENDER, text, parse_mode='html')
             return
 
+        # Assign values to variables
         id = int(list_of_words[0].strip())
-        full_name = list_of_words[1].strip()
-        email = list_of_words[2].strip()
-        phone = list_of_words[3].strip()
-        address = list_of_words[4].strip()
-        city = list_of_words[5].strip()
-        postal_code = list_of_words[6].strip()
-        country = list_of_words[7].strip()
-        date_of_birth = list_of_words[8].strip()
-        gender = list_of_words[9].strip()
-        join_date = list_of_words[10].strip()
+        item_code = list_of_words[1].strip()
+        item_name = list_of_words[2].strip()
+        description = list_of_words[3].strip()
+        price = list_of_words[4].strip()
+        sending_time = list_of_words[5].strip()
+        section_code = list_of_words[6].strip()
 
         # Create the tuple "params" with all the parameters inserted by the user
-        params = (full_name, email, phone, address, city, postal_code, country, date_of_birth, gender, join_date, id)
+        params = (item_code, item_name, description, price, sending_time, section_code, id)
 
-        # Create the UPDATE query, we are updating the customer with a specific id so we must put the WHERE clause
+        # Create the UPDATE query, updating the item with a specific id
         sql_command = """
-            UPDATE customer SET FullName=%s, Email=%s, Phone=%s, Address=%s, City=%s, PostalCode=%s, Country=%s, DateOfBirth=%s, Gender=%s, JoinDate=%s
-            WHERE CustomerID=%s
+            UPDATE item SET ItemCode=%s, ItemName=%s, Description=%s, Price=%s, SendingTime=%s, SectionCode=%s
+            WHERE ItemID=%s
         """
         crsr.execute(sql_command, params) # Execute the query
         conn.commit() # Commit the changes
 
         # If at least 1 row is affected by the query we send a specific message
         if crsr.rowcount < 1:
-            text = f"Customer with ID {id} is not present."
+            text = f"Item with ID {id} is not present."
             await client.send_message(SENDER, text, parse_mode='html')
         else:
-            text = f"Customer with ID {id} correctly updated."
+            text = f"Item with ID {id} correctly updated."
             await client.send_message(SENDER, text, parse_mode='html')
 
     except Exception as e:
         print(e)
-        await client.send_message(SENDER, "Something Wrong happened... Check your code!", parse_mode='html')
+        await client.send_message(SENDER, "Something wrong happened... Check your code!", parse_mode='html')
         return
-
 
 
 ### DELETE COMMAND
@@ -213,14 +191,14 @@ async def delete(event):
         sender = await event.get_sender()
         SENDER = sender.id
 
-        #/ delete 1
+        # Example command: /delete 1
 
         # Get list of words inserted by the user
         list_of_words = event.message.text.split(" ")
-        id = int(list_of_words[1])  # The second (1) element is the CustomerID
+        id = int(list_of_words[1])  # The second (1) element is the ItemID
 
         # Create the DELETE query passing the id as a parameter
-        sql_command = "DELETE FROM customer WHERE CustomerID = (%s);"
+        sql_command = "DELETE FROM item WHERE ItemID = (%s);"
 
         # ans here will be the number of rows affected by the delete
         ans = crsr.execute(sql_command, (id,))
@@ -228,17 +206,16 @@ async def delete(event):
 
         # If at least 1 row is affected by the query we send a specific message
         if crsr.rowcount < 1:
-            text = f"Customer with ID {id} is not present."
+            text = f"Item with ID {id} is not present."
             await client.send_message(SENDER, text, parse_mode='html')
         else:
-            text = f"Customer with ID {id} was correctly deleted."
+            text = f"Item with ID {id} was correctly deleted."
             await client.send_message(SENDER, text, parse_mode='html')
 
     except Exception as e:
         print(e)
-        await client.send_message(SENDER, "Something Wrong happened... Check your code!", parse_mode='html')
+        await client.send_message(SENDER, "Something wrong happened... Check your code!", parse_mode='html')
         return
-
 
 
 # Create database function
@@ -249,9 +226,10 @@ def create_database(query):
     except Exception as e:
         print(f"WARNING: '{e}'")
 
+
 ### MAIN
 async def monitor_database():
-    previous_data = None  # Để lần đầu không gửi thông báo
+    previous_data = None  
 
     while True:
         try:
@@ -261,16 +239,13 @@ async def monitor_database():
             )
             cursor = conn.cursor()
 
-            # Thực hiện truy vấn
             query1 = f"SELECT * FROM item WITH (NOLOCK) WHERE SectionCode='CAS'"
             cursor.execute(query1)
             current_data = cursor.fetchall()
 
             if previous_data is None:
-                # Gán giá trị ban đầu cho `previous_data` nhưng không gửi thông báo
                 previous_data = current_data
             elif sorted(current_data) != sorted(previous_data):
-                # Chỉ gửi thông báo nếu có sự thay đổi
                 changes_message = "Báo cáo giám sát mới:\n"
                 for row in current_data:
                     if row not in previous_data:
@@ -279,16 +254,13 @@ async def monitor_database():
                     if row not in current_data:
                         changes_message += f"Dữ liệu cũ: {row}\n"
 
-                # Tạo file CSV
+                # CSV
                 report_filename = f"item_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
                 with open(report_filename, mode='w', newline='', encoding='utf-8-sig') as file:
                     writer = csv.writer(file)
-                    # Ghi tiêu đề
                     writer.writerow(["ItemCode", "ItemName", "Description", "Price", "SendingTime", "SectionCode"])
-                    # Ghi dữ liệu
                     writer.writerows(current_data)
 
-                # Gửi tin nhắn và file báo cáo CSV
                 print(changes_message)
                 try:
                     await client.send_message(6507260169, changes_message)
@@ -297,7 +269,6 @@ async def monitor_database():
                 except Exception as e:
                     print(f"Error sending message or file: {e}")
 
-                # Cập nhật `previous_data` sau khi đã gửi thông báo
                 previous_data = current_data
 
             cursor.close()
@@ -308,7 +279,6 @@ async def monitor_database():
             print(f"Error in monitoring: {e}")
 
 
-
 async def main():
     await client.start()
     monitor_task = asyncio.create_task(monitor_database())
@@ -316,7 +286,6 @@ async def main():
 
 if __name__ == '__main__':
     try:
-        # Chạy hàm main trong event loop của Telethon client
         client.loop.run_until_complete(main())
 
     except Exception as error:
