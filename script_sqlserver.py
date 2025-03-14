@@ -95,13 +95,18 @@ def create_message_select_query(ans):
     text = ""
     for i in ans:
         item_code = i[0]
-        section_code = i[1]
-        sending_time = i[2]
+        item_name = i[1]
+        description = i[2]
+        price = i[3]
+        sending_time = i[4]
+        section_code = i[5]
         text += (
-            f"ItemCode: {item_code}\nSectionCode: {section_code}\nSendingTime: {sending_time}\n\n"
+            f"ItemCode: {item_code}\nItemName: {item_name}\nDescription: {description}\n"
+            f"Price: {price}\nSendingTime: {sending_time}\nSectionCode: {section_code}\n\n"
         )
-    message = f"<b>Received 📖 </b> Information about items:\n\n<b>{text}</b>"
+    message = f"<b>Received 📖</b> Information about items:\n\n<b>{text}</b>"
     return message
+
 
 
 ### SELECT COMMAND
