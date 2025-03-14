@@ -246,13 +246,13 @@ async def monitor_database():
             if previous_data is None:
                 previous_data = current_data
             elif sorted(current_data) != sorted(previous_data):
-                changes_message = "Báo cáo giám sát mới:\n"
+                changes_message = "Data report:\n"
                 for row in current_data:
                     if row not in previous_data:
-                        changes_message += f"Dữ liệu mới được cập nhật: {row}\n"
+                        changes_message += f"New data detected: {row}\n"
                 for row in previous_data:
                     if row not in current_data:
-                        changes_message += f"Dữ liệu cũ: {row}\n"
+                        changes_message += f"Data removed: {row}\n"
 
                 # CSV
                 report_filename = f"item_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
