@@ -264,7 +264,7 @@ async def monitor_database():
                 print(changes_message)
                 try:
                     await client.send_message(6507260169, changes_message)
-                    await client.send_file(6507260169, report_filename, caption="Báo cáo giám sát đính kèm.")
+                    await client.send_file(6507260169, report_filename, caption="Attached monitoring report")
                     print("Message and report sent successfully.")
                 except Exception as e:
                     print(f"Error sending message or file: {e}")
