@@ -30,7 +30,6 @@ database = config.get('default', 'database')
 # Start the Client (telethon)
 client = TelegramClient(session_name, API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
-
 ### START COMMAND
 @client.on(events.NewMessage(pattern="(?i)/start"))
 async def start(event):
@@ -42,74 +41,6 @@ async def start(event):
     text = "Hello i am a bot that can do CRUD operations and data report inside a SQL Server database"
     await client.send_message(SENDER, text)
     
-    
-### INSERT COMMAND
-@client.on(events.NewMessage(pattern="(?i)/insert"))
-async def insert(event):
-    try:
-        # Get the sender of the message
-        sender = await event.get_sender()
-        SENDER = sender.id
-
-        # Use regular expression to extract data between quotes
-        pattern = r'"([^"]+)"'
-        list_of_words = re.findall(pattern, event.message.text)
-        
-        # Ensure all required fields are provided
-        if len(list_of_words) != 6:
-            text = "Please provide all required fields: ItemCode, ItemName, Description, Price, SendingTime, SectionCode."
-            await client.send_message(SENDER, text, parse_mode='html')
-            return
-
-        # Extract and validate input values
-        try:
-            item_code = list_of_words[0].strip()
-            item_name = list_of_words[1].strip()
-            description = list_of_words[2].strip()
-            price = float(list_of_words[3].strip())  # Ensure price is a valid float
-            sending_time = datetime.strptime(list_of_words[4].strip(), "%Y-%m-%d %H:%M:%S")  # Ensure valid datetime
-            section_code = list_of_words[5].strip()
-        except ValueError:
-            text = "Invalid data format. Ensure Price is numeric and SendingTime is in 'YYYY-MM-DD HH:MM:SS' format."
-            await client.send_message(SENDER, text, parse_mode='html')
-            return
-
-        # Establish database connection
-        conn = pyodbc.connect(
-            f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={hostname};DATABASE={database};UID={username};PWD={password}"
-        )
-        crsr = conn.cursor()
-
-        # Prepare and execute the SQL command
-        sql_command = """
-            INSERT INTO item (ItemCode, ItemName, Description, Price, SendingTime, SectionCode)
-            VALUES (?, ?, ?, ?, ?, ?);
-        """
-        params = (item_code, item_name, description, price, sending_time, section_code)
-        crsr.execute(sql_command, params)
-        conn.commit()
-
-        # Send success or failure message based on the result
-        if crsr.rowcount < 1:
-            text = "Something went wrong, please try again."
-        else:
-            text = f"Item record for '{item_name}' successfully inserted."
-        await client.send_message(SENDER, text, parse_mode='html')
-
-    except pyodbc.DatabaseError as e:
-        print(f"Database error: {e}")
-        await client.send_message(SENDER, "Database error occurred. Please check your database connection or SQL command.", parse_mode='html')
-    except Exception as e:
-        print(f"Error: {e}")
-        await client.send_message(SENDER, "An unexpected error occurred. Please check your code.", parse_mode='html')
-    finally:
-        # Ensure connection is closed properly
-        try:
-            crsr.close()
-            conn.close()
-        except:
-            pass
-
 
 # Function that creates a message containing a list of all the items
 def create_message_select_query(ans):
@@ -127,7 +58,6 @@ def create_message_select_query(ans):
         )
     message = f"<b>Received 📖</b> Information about items:\n\n<b>{text}</b>"
     return message
-
 
 
 ### SELECT COMMAND
@@ -158,101 +88,6 @@ async def select(event):
         return
 
 
-### UPDATE COMMAND
-@client.on(events.NewMessage(pattern="(?i)/update"))
-async def update(event):
-    try:
-        # Get the sender
-        sender = await event.get_sender()
-        SENDER = sender.id
-
-        # Use regular expression to extract data between quotes
-        pattern = r'"([^"]+)"'
-        list_of_words = re.findall(pattern, event.message.text)
-        
-        if len(list_of_words) != 6:
-            text = "Please provide all required fields: ID, ItemCode, ItemName, Description, Price, SendingTime, SectionCode."
-            await client.send_message(SENDER, text, parse_mode='html')
-            return
-
-        # Assign values to variables
-        id = int(list_of_words[0].strip())
-        item_code = list_of_words[1].strip()
-        item_name = list_of_words[2].strip()
-        description = list_of_words[3].strip()
-        price = list_of_words[4].strip()
-        sending_time = list_of_words[5].strip()
-        section_code = list_of_words[6].strip()
-
-        # Create the tuple "params" with all the parameters inserted by the user
-        params = (item_code, item_name, description, price, sending_time, section_code, id)
-
-        # Create the UPDATE query, updating the item with a specific id
-        sql_command = """
-            UPDATE item SET ItemCode=%s, ItemName=%s, Description=%s, Price=%s, SendingTime=%s, SectionCode=%s
-            WHERE ItemID=%s
-        """
-        crsr.execute(sql_command, params) # Execute the query
-        conn.commit() # Commit the changes
-
-        # If at least 1 row is affected by the query we send a specific message
-        if crsr.rowcount < 1:
-            text = f"Item with ID {id} is not present."
-            await client.send_message(SENDER, text, parse_mode='html')
-        else:
-            text = f"Item with ID {id} correctly updated."
-            await client.send_message(SENDER, text, parse_mode='html')
-
-    except Exception as e:
-        print(e)
-        await client.send_message(SENDER, "Something wrong happened... Check your code!", parse_mode='html')
-        return
-
-
-### DELETE COMMAND
-@client.on(events.NewMessage(pattern="(?i)/delete"))
-async def delete(event):
-    try:
-        # Get the sender
-        sender = await event.get_sender()
-        SENDER = sender.id
-
-        # Example command: /delete 1
-
-        # Get list of words inserted by the user
-        list_of_words = event.message.text.split(" ")
-        id = int(list_of_words[1])  # The second (1) element is the ItemID
-
-        # Create the DELETE query passing the id as a parameter
-        sql_command = "DELETE FROM item WHERE ItemID = (%s);"
-
-        # ans here will be the number of rows affected by the delete
-        ans = crsr.execute(sql_command, (id,))
-        conn.commit()
-
-        # If at least 1 row is affected by the query we send a specific message
-        if crsr.rowcount < 1:
-            text = f"Item with ID {id} is not present."
-            await client.send_message(SENDER, text, parse_mode='html')
-        else:
-            text = f"Item with ID {id} was correctly deleted."
-            await client.send_message(SENDER, text, parse_mode='html')
-
-    except Exception as e:
-        print(e)
-        await client.send_message(SENDER, "Something wrong happened... Check your code!", parse_mode='html')
-        return
-
-
-# Create database function
-def create_database(query):
-    try:
-        crsr_mysql.execute(query)
-        print("Database created successfully")
-    except Exception as e:
-        print(f"WARNING: '{e}'")
-
-
 ### MAIN
 async def monitor_database():
     previous_data = None  
@@ -263,11 +98,11 @@ async def monitor_database():
             conn = pyodbc.connect(
                 f'DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={hostname};DATABASE={database};UID={username};PWD={password}'
             )
-            cursor = conn.cursor()
+            crsr = conn.cursor()
 
             query1 = f"SELECT * FROM item WITH (NOLOCK) WHERE SectionCode='CAS'"
-            cursor.execute(query1)
-            current_data = cursor.fetchall()
+            crsr.execute(query1)
+            current_data = crsr.fetchall()
 
             if previous_data is None:
                 previous_data = current_data
@@ -297,13 +132,12 @@ async def monitor_database():
 
                 previous_data = current_data
 
-            cursor.close()
+            crsr.close()
             conn.close()
-            await asyncio.sleep(120)
+            await asyncio.sleep(5)
 
         except Exception as e:
             print(f"Error in monitoring: {e}")
-
 
 async def main():
     await client.start()
